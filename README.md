@@ -12,6 +12,7 @@ Prometheus exporter for [Dagster](https://dagster.io/). Queries the Dagster Grap
 | `dagster_schedule_last_tick_timestamp_seconds` | `schedule_name`, `repository` | Unix timestamp of the schedule's last tick |
 | `dagster_sensor_running` | `sensor_name`, `repository` | `1` if the sensor is running, `0` if stopped |
 | `dagster_sensor_last_tick_timestamp_seconds` | `sensor_name`, `repository` | Unix timestamp of the sensor's last tick |
+| `dagster_code_location_status` | `location`, `status` | `1` for the current status of the code location as shown in the Deployment tab (`LOADED`, `LOADING`, `FAILED`), `0` otherwise |
 
 ## Configuration
 
