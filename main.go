@@ -65,6 +65,8 @@ type workspaceData struct {
 }
 
 type locationEntry struct {
+	Name                string `json:"name"`
+	LoadStatus          string `json:"loadStatus"` // LOADING or LOADED
 	LocationOrLoadError struct {
 		Typename     string       `json:"__typename"`
 		Name         string       `json:"name"`
@@ -125,6 +127,8 @@ const workspaceQuery = `{
     __typename
     ... on Workspace {
       locationEntries {
+        name
+        loadStatus
         locationOrLoadError {
           __typename
           ... on RepositoryLocation {
@@ -166,6 +170,7 @@ type dagsterCollector struct {
 	scheduleLastTick *prometheus.Desc
 	sensorRunning    *prometheus.Desc
 	sensorLastTick   *prometheus.Desc
+	locationStatus   *prometheus.Desc
 }
 
 func newCollector(url string, runsLimit int) *dagsterCollector {
@@ -203,6 +208,11 @@ func newCollector(url string, runsLimit int) *dagsterCollector {
 			"Unix timestamp of the sensor's last tick",
 			[]string{"sensor_name", "repository", "location"}, nil,
 		),
+		locationStatus: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "code_location", "status"),
+			"1 for the current status of the code location (LOADED, LOADING, FAILED), 0 otherwise",
+			[]string{"location", "status"}, nil,
+		),
 	}
 }
 
@@ -213,6 +223,7 @@ func (c *dagsterCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.scheduleLastTick
 	ch <- c.sensorRunning
 	ch <- c.sensorLastTick
+	ch <- c.locationStatus
 }
 
 func (c *dagsterCollector) Collect(ch chan<- prometheus.Metric) {
@@ -293,6 +304,11 @@ func (c *dagsterCollector) collectWorkspace(ch chan<- prometheus.Metric) error {
 		return err
 	}
 	for _, entry := range resp.Data.WorkspaceOrError.LocationEntries {
+		current := codeLocationStatus(entry)
+		for _, status := range codeLocationStatuses {
+			ch <- prometheus.MustNewConstMetric(c.locationStatus, prometheus.GaugeValue, boolToFloat(status == current), entry.Name, status)
+		}
+
 		loc := entry.LocationOrLoadError
 		if loc.Typename != "RepositoryLocation" {
 			continue
@@ -315,6 +331,21 @@ func (c *dagsterCollector) collectWorkspace(ch chan<- prometheus.Metric) error {
 		}
 	}
 	return nil
+}
+
+var codeLocationStatuses = []string{"LOADED", "LOADING", "FAILED"}
+
+// codeLocationStatus mirrors the status shown in the Dagster UI Deployment tab:
+// LOADING while (re)loading, FAILED if the location could not be loaded, LOADED otherwise.
+func codeLocationStatus(entry locationEntry) string {
+	switch {
+	case entry.LoadStatus == "LOADING":
+		return "LOADING"
+	case entry.LocationOrLoadError.Typename == "PythonError":
+		return "FAILED"
+	default:
+		return "LOADED"
+	}
 }
 
 func boolToFloat(b bool) float64 {
