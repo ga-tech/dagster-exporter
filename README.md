@@ -44,7 +44,7 @@ docker run -e DAGSTER_URL=http://dagster-webserver:3000 -p 8000:8000 dagster-exp
 # Login to ECR
 make ecr-login
 
-# Build for linux/amd64 (default)
+# Build for linux/arm64 (ECS tasks run on Fargate ARM64)
 make build TAG=v0.1.0
 
 # Push to ECR
@@ -57,12 +57,11 @@ make release TAG=v0.1.0
 make tag-latest TAG=v0.1.0
 ```
 
-Override variables as needed:
+Override variables as needed (the platform is fixed to `linux/arm64`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TAG` | `latest` | Image tag |
-| `PLATFORM` | `linux/amd64` | Target platform |
 | `REGION` | `ap-northeast-1` | AWS region for ECR login |
 
 ### docker-compose (sidecar)

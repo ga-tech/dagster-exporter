@@ -1,6 +1,7 @@
 IMAGE_REPO ?= 677929148633.dkr.ecr.ap-northeast-1.amazonaws.com/dagster/dagster-exporter
 TAG        ?= latest
-PLATFORM   ?= linux/amd64
+# ECS tasks run on Fargate ARM64; building for any other platform fails with "exec format error"
+override PLATFORM := linux/arm64
 REGION     ?= ap-northeast-1
 
 .PHONY: build push release tag-latest ecr-login
